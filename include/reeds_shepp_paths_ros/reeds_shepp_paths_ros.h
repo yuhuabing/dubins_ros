@@ -46,7 +46,7 @@
 
 #include <ompl/base/ScopedState.h>
 #include <ompl/geometric/SimpleSetup.h>
-#include <ompl/base/spaces/ReedsSheppStateSpace.h>
+#include <ompl/base/spaces/DubinsStateSpace.h>
 
 namespace reeds_shepp
 {
