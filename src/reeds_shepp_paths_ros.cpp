@@ -46,7 +46,7 @@ namespace reeds_shepp
     costmap_2d::Costmap2DROS* costmapROS,
     tf::TransformListener* tfListener)
     :
-      reedsSheppStateSpace_(new ompl::base::DubinsStateSpace(2.0)),
+      reedsSheppStateSpace_(new ompl::base::DubinsStateSpace(1.5)),
       simpleSetup_(new ompl::geometric::SimpleSetup(reedsSheppStateSpace_)),
       costmapROS_(), tfListener_(), bx_(10), by_(10), bounds_(2),
       initialized_(false)
@@ -102,7 +102,7 @@ namespace reeds_shepp
         "Same robot_frame and global_frame assumed.");
       robotFrame_ = globalFrame_ = "base_footprint";
 
-      setBoundaries(10.0, 10.0);
+      setBoundaries(1000.0, 1000.0);
     }
 
     initialized_ = true;
