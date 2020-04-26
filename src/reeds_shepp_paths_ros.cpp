@@ -46,7 +46,7 @@ namespace reeds_shepp
     costmap_2d::Costmap2DROS* costmapROS,
     tf::TransformListener* tfListener)
     :
-      reedsSheppStateSpace_(new ompl::base::DubinsStateSpace),
+      reedsSheppStateSpace_(new ompl::base::DubinsStateSpace(2.0)),
       simpleSetup_(new ompl::geometric::SimpleSetup(reedsSheppStateSpace_)),
       costmapROS_(), tfListener_(), bx_(10), by_(10), bounds_(2),
       initialized_(false)
