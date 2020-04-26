@@ -39,6 +39,7 @@
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/PoseArray.h>
 #include <nav_msgs/Path.h>
 #include "reeds_shepp_paths_ros/reeds_shepp_paths_ros.h"
 #include <math.h>
@@ -97,13 +98,13 @@ class StartGoalUpdater
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "reeds_shepp_paths_ros_demo");
-  ros::NodeHandle nh("~");
-
+  ros::NodeHandle nh("/");
+  // ros::NodeHandle nh();
   // create path publisher
   ros::Publisher pathPub = nh.advertise<nav_msgs::Path>("path", 1);
   ros::Publisher startPosePub = nh.advertise<geometry_msgs::PoseStamped>("start_pose", 1);
   ros::Publisher goalPosePub = nh.advertise<geometry_msgs::PoseStamped>("goal_pose", 1);
-
+  ros::Publisher posearrayPub = nh.advertise<geometry_msgs::PoseArray>("global_path_point", 1);
   geometry_msgs::PoseStamped start, goal;
   start.header.frame_id = goal.header.frame_id = "map";
 
@@ -135,6 +136,14 @@ int main(int argc, char** argv)
 
       // publish path
       pathPub.publish(path);
+
+      geometry_msgs::PoseArray posearray;
+      posearray.header=header;
+      for(int i=0;i<pathPoses.size();i++){
+        posearray.poses.push_back(pathPoses[i].pose);
+      }
+      posearrayPub.publish(posearray);
+
     }
     else
     {
