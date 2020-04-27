@@ -43,6 +43,7 @@
 #include <nav_msgs/Path.h>
 #include "reeds_shepp_paths_ros/reeds_shepp_paths_ros.h"
 #include <math.h>
+#include "std_msgs/Bool.h"
 
 
 #include <ros/ros.h>
@@ -50,6 +51,11 @@
 #include <fstream>
 #include <list>
 using namespace std;
+
+
+bool flag=false;
+
+
 void trans(vector<double> src, geometry_msgs::PoseStamped& des){
   des.pose.position.x=src[0];
   des.pose.position.y=src[1];
@@ -69,12 +75,18 @@ void trans(vector<double> src, geometry_msgs::PoseStamped& des){
   des.pose.orientation.y = sy * cp * sr + cy * sp * cr;
   des.pose.orientation.z = sy * cp * cr - cy * sp * sr;
 }
+void chatterCallback(std_msgs::Bool m)
+{
+   if(m.data)flag=true;
+}
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "dubins_ros_demo");
   ros::NodeHandle nh("/");
+  ros::Publisher pub = nh.advertise<std_msgs::Bool>("finish_flag", 1000);
+  ros::Subscriber sub = nh.subscribe("change_flag", 1000, chatterCallback);
   // 读取yaml文件，设置起始点，终止点
-  std::string straightpathstr ="/home/yhb/param.yaml";
+  std::string straightpathstr ="/home/yhb/in.yaml";
   YAML::Node straightyamlConfig=YAML::LoadFile(straightpathstr);
   int pointnum = straightyamlConfig["terminal_num"].as<int>();
   vector<vector<double> > startposes;
@@ -91,34 +103,40 @@ int main(int argc, char** argv)
     endposes.push_back(tmpend);
   }
   // 输出yaml配置
-  std::string curvepathstr ="/home/yhb/param.yaml";
-  YAML::Node yamlConfig=YAML::LoadFile(curvepathstr);
+  std::string curvepathstr ="/home/yhb/out.yaml";
+  YAML::Node yamlConfig;
   std::ofstream outfile;
   outfile.open(curvepathstr);
-
   reeds_shepp::RSPathsROS RSPlanner("demo", NULL, NULL);
-  int nums=startposes.size();
-  yamlConfig["path_num"]=nums;
-  for(int i=0;i<nums;i++){
-    geometry_msgs::PoseStamped start, goal;
-    trans(startposes[i],start);
-    trans(endposes[i],goal);
-    start.header.frame_id = goal.header.frame_id = "map";
-    std::vector<geometry_msgs::PoseStamped> pathPoses;
-    RSPlanner.planPath(start, goal, pathPoses);
-    for(int j=0;j<pathPoses.size();j++){
-      YAML::Node pointTemp = YAML::Load("[]");
-      pointTemp.push_back(pathPoses[j].pose.position.x);
-      pointTemp.push_back(pathPoses[j].pose.position.y);
-      pointTemp.push_back(pathPoses[j].pose.position.z);
-      yamlConfig[i+1][j+1] = pointTemp;
+  while(ros::ok()){
+    if(flag){
+      int nums=startposes.size();
+      yamlConfig["path_num"]=nums;
+      for(int i=0;i<nums;i++){
+        geometry_msgs::PoseStamped start, goal;
+        trans(startposes[i],start);
+        trans(endposes[i],goal);
+        start.header.frame_id = goal.header.frame_id = "map";
+        std::vector<geometry_msgs::PoseStamped> pathPoses;
+        RSPlanner.planPath(start, goal, pathPoses);
+        for(int j=0;j<pathPoses.size();j++){
+          YAML::Node pointTemp = YAML::Load("[]");
+          pointTemp.push_back(pathPoses[j].pose.position.x);
+          pointTemp.push_back(pathPoses[j].pose.position.y);
+          pointTemp.push_back(pathPoses[j].pose.position.z);
+          yamlConfig[i+1][j+1] = pointTemp;
+        }
+        outfile << yamlConfig;  
+
+      }
+      outfile.close();
+      std_msgs::Bool std_flag;
+      std_flag.data=true;
+      pub.publish(std_flag);
+      flag=false;
     }
-    outfile << yamlConfig;  
-
+    ros::spinOnce();
+    ros::Duration(1.0).sleep();
   }
-  outfile.close();
-  // ros::spinOnce();
-  // ros::Duration(1.0).sleep();
-
   return 0;
 }

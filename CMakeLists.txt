@@ -10,6 +10,7 @@ find_package(catkin REQUIRED
     base_local_planner
     geometry_msgs
     nav_msgs
+    std_msgs
 )
 
 find_package(OMPL)
@@ -38,6 +39,7 @@ catkin_package(
     base_local_planner
     geometry_msgs
     nav_msgs
+    std_msgs
   LIBRARIES
     ${PROJECT_NAME}
   )
