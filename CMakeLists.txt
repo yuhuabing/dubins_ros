@@ -16,11 +16,16 @@ find_package(OMPL)
 if (NOT OMPL_FOUND)
   message(SEND_ERROR "Failed to find OMPL! Install OMPL and try again!")
 endif ()
-
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(YAMLCPP yaml-cpp REQUIRED)
+if(YAMLCPP_VERSION VERSION_GREATER "0.5.0")
+    add_definitions(-DHAVE_YAMLCPP_GT_0_5_0)
+endif()
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OMPL_INCLUDE_DIRS}
+  ${YAMLCPP_INCLUDE_DIRS}
 )
 
 
@@ -41,4 +46,4 @@ add_library(${PROJECT_NAME} src/${PROJECT_NAME}.cpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
 
 add_executable(demo src/demo.cpp)
-target_link_libraries(demo ${PROJECT_NAME} ${catkin_LIBARRIES})
+target_link_libraries(demo ${PROJECT_NAME} ${catkin_LIBARRIES} ${YAMLCPP_LIBRARIES})

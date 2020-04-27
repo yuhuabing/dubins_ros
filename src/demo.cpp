@@ -44,117 +44,81 @@
 #include "reeds_shepp_paths_ros/reeds_shepp_paths_ros.h"
 #include <math.h>
 
-class StartGoalUpdater
-{
-  public:
 
-    StartGoalUpdater(
-      ros::NodeHandle* nh,
-      geometry_msgs::PoseStamped* start,
-      geometry_msgs::PoseStamped* goal)
-      : nh_(nh), start_(start), goal_(goal),
-        receivedStart_(false), receivedGoal_(false)
-    {
-      startSub_ = nh_->subscribe(
-        "/initialpose", 1, &StartGoalUpdater::startCallback, this);
-      goalSub_ = nh_->subscribe(
-        "/move_base_simple/goal", 1, &StartGoalUpdater::goalCallback, this);
-    }
-
-    void startCallback(const geometry_msgs::PoseWithCovarianceStamped& msg)
-    {
-      if (!receivedStart_)
-        receivedStart_ = true;
-
-      start_->header = msg.header;
-      start_->pose = msg.pose.pose;
-    }
-
-    void goalCallback(const geometry_msgs::PoseStamped& msg)
-    {
-      if (!receivedGoal_)
-        receivedGoal_ = true;
-
-      *goal_ = msg;
-    }
-
-    bool receivedStart() {return receivedStart_;}
-    bool receivedGoal() {return receivedGoal_;}
-    bool receivedStartAndGoal() {return (receivedStart_ && receivedGoal_);}
-
-  private:
-
-    ros::NodeHandle* nh_;
-    ros::Subscriber startSub_;
-    ros::Subscriber goalSub_;
-
-    geometry_msgs::PoseStamped* start_;
-    geometry_msgs::PoseStamped* goal_;
-
-    bool receivedStart_;
-    bool receivedGoal_;
-};
-
+#include <ros/ros.h>
+#include "yaml-cpp/yaml.h"
+#include <fstream>
+#include <list>
+using namespace std;
+void trans(vector<double> src, geometry_msgs::PoseStamped& des){
+  des.pose.position.x=src[0];
+  des.pose.position.y=src[1];
+  des.pose.position.z=0;
+  //angle转四元数
+  double yaw=src[2];
+  double pitch=0;
+  double roll=0;
+  double cy = cos(yaw * 0.5);
+  double sy = sin(yaw * 0.5);
+  double cp = cos(pitch * 0.5);
+  double sp = sin(pitch * 0.5);
+  double cr = cos(roll * 0.5);
+  double sr = sin(roll * 0.5);
+  des.pose.orientation.w = cy * cp * cr + sy * sp * sr;
+  des.pose.orientation.x = cy * cp * sr - sy * sp * cr;
+  des.pose.orientation.y = sy * cp * sr + cy * sp * cr;
+  des.pose.orientation.z = sy * cp * cr - cy * sp * sr;
+}
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "reeds_shepp_paths_ros_demo");
+  ros::init(argc, argv, "dubins_ros_demo");
   ros::NodeHandle nh("/");
-  // ros::NodeHandle nh();
-  // create path publisher
-  ros::Publisher pathPub = nh.advertise<nav_msgs::Path>("path", 1);
-  ros::Publisher startPosePub = nh.advertise<geometry_msgs::PoseStamped>("start_pose", 1);
-  ros::Publisher goalPosePub = nh.advertise<geometry_msgs::PoseStamped>("goal_pose", 1);
-  ros::Publisher posearrayPub = nh.advertise<geometry_msgs::PoseArray>("global_path_point", 1);
-  geometry_msgs::PoseStamped start, goal;
-  start.header.frame_id = goal.header.frame_id = "map";
-
-  StartGoalUpdater sgu(&nh, &start, &goal);
-
-  // initialize ReedsSheppPathsROS
-  reeds_shepp::RSPathsROS RSPlanner("demo", NULL, NULL);
-
-  while (ros::ok())
-  {
-    if (sgu.receivedStart())
-      startPosePub.publish(start);
-    if (sgu.receivedGoal())
-      goalPosePub.publish(goal);
-
-    if (sgu.receivedStartAndGoal())
-    {
-      // plan path from start to goal pose
-      std::vector<geometry_msgs::PoseStamped> pathPoses;
-      RSPlanner.planPath(start, goal, pathPoses);
-
-      std_msgs::Header header =
-        (start.header.stamp > goal.header.stamp) ? start.header : goal.header;
-
-      // create path msg from path states
-      nav_msgs::Path path;
-      path.header = header;
-      path.poses = pathPoses;
-
-      // publish path
-      pathPub.publish(path);
-
-      geometry_msgs::PoseArray posearray;
-      posearray.header=header;
-      for(int i=0;i<pathPoses.size();i++){
-        posearray.poses.push_back(pathPoses[i].pose);
-      }
-      posearrayPub.publish(posearray);
-
-    }
-    else
-    {
-      ROS_INFO("Waiting for start and goal poses...");
-    }
-
-
-    ros::spinOnce();
-
-    ros::Duration(1.0).sleep();
+  // 读取yaml文件，设置起始点，终止点
+  std::string straightpathstr ="/home/yhb/param.yaml";
+  YAML::Node straightyamlConfig=YAML::LoadFile(straightpathstr);
+  int pointnum = straightyamlConfig["terminal_num"].as<int>();
+  vector<vector<double> > startposes;
+  vector<vector<double> > endposes;
+  for(int i=2;i<pointnum;i+=2){
+    vector<double> tmpstart,tmpend;
+    tmpstart.push_back(straightyamlConfig[i]["point"][0].as<double>());
+    tmpstart.push_back(straightyamlConfig[i]["point"][1].as<double>());
+    tmpstart.push_back(straightyamlConfig[i]["point"][2].as<double>());
+    startposes.push_back(tmpstart);
+    tmpend.push_back(straightyamlConfig[i+1]["point"][0].as<double>());
+    tmpend.push_back(straightyamlConfig[i+1]["point"][1].as<double>());
+    tmpend.push_back(straightyamlConfig[i+1]["point"][2].as<double>());
+    endposes.push_back(tmpend);
   }
+  // 输出yaml配置
+  std::string curvepathstr ="/home/yhb/param.yaml";
+  YAML::Node yamlConfig=YAML::LoadFile(curvepathstr);
+  std::ofstream outfile;
+  outfile.open(curvepathstr);
+
+  reeds_shepp::RSPathsROS RSPlanner("demo", NULL, NULL);
+  int nums=startposes.size();
+  yamlConfig["path_num"]=nums;
+  for(int i=0;i<nums;i++){
+    geometry_msgs::PoseStamped start, goal;
+    trans(startposes[i],start);
+    trans(endposes[i],goal);
+    start.header.frame_id = goal.header.frame_id = "map";
+    std::vector<geometry_msgs::PoseStamped> pathPoses;
+    RSPlanner.planPath(start, goal, pathPoses);
+    for(int j=0;j<pathPoses.size();j++){
+      YAML::Node pointTemp = YAML::Load("[]");
+      pointTemp.push_back(pathPoses[j].pose.position.x);
+      pointTemp.push_back(pathPoses[j].pose.position.y);
+      pointTemp.push_back(pathPoses[j].pose.position.z);
+      yamlConfig[i+1][j+1] = pointTemp;
+    }
+    outfile << yamlConfig;  
+
+  }
+  outfile.close();
+  // ros::spinOnce();
+  // ros::Duration(1.0).sleep();
 
   return 0;
 }
