@@ -55,7 +55,11 @@ using namespace std;
 
 bool flag=false;
 
-
+double trans2angle(geometry_msgs::Quaternion q){
+  double siny_cosp = 2 * (q.w * q.z + q.x * q.y);
+  double cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z);
+  return std::atan2(siny_cosp, cosy_cosp);
+}
 void trans(vector<double> src, geometry_msgs::PoseStamped& des){
   des.pose.position.x=src[0];
   des.pose.position.y=src[1];
@@ -75,6 +79,7 @@ void trans(vector<double> src, geometry_msgs::PoseStamped& des){
   des.pose.orientation.y = sy * cp * sr + cy * sp * cr;
   des.pose.orientation.z = sy * cp * cr - cy * sp * sr;
 }
+
 void chatterCallback(std_msgs::Bool m)
 {
    if(m.data)flag=true;
@@ -85,32 +90,33 @@ int main(int argc, char** argv)
   ros::NodeHandle nh("/");
   ros::Publisher pub = nh.advertise<std_msgs::Bool>("finish_flag", 1000);
   ros::Subscriber sub = nh.subscribe("change_flag", 1000, chatterCallback);
-  // 读取yaml文件，设置起始点，终止点
+  // 输入输出yaml文件路径
   std::string straightpathstr ="/home/yhb/in.yaml";
-  YAML::Node straightyamlConfig=YAML::LoadFile(straightpathstr);
-  int pointnum = straightyamlConfig["terminal_num"].as<int>();
-  vector<vector<double> > startposes;
-  vector<vector<double> > endposes;
-  for(int i=2;i<pointnum;i+=2){
-    vector<double> tmpstart,tmpend;
-    tmpstart.push_back(straightyamlConfig[i]["point"][0].as<double>());
-    tmpstart.push_back(straightyamlConfig[i]["point"][1].as<double>());
-    tmpstart.push_back(straightyamlConfig[i]["point"][2].as<double>());
-    startposes.push_back(tmpstart);
-    tmpend.push_back(straightyamlConfig[i+1]["point"][0].as<double>());
-    tmpend.push_back(straightyamlConfig[i+1]["point"][1].as<double>());
-    tmpend.push_back(straightyamlConfig[i+1]["point"][2].as<double>());
-    endposes.push_back(tmpend);
-  }
-  // 输出yaml配置
   std::string curvepathstr ="/home/yhb/out.yaml";
-  YAML::Node yamlConfig;
-  std::ofstream outfile;
-  outfile.open(curvepathstr);
   reeds_shepp::RSPathsROS RSPlanner("demo", NULL, NULL);
   while(ros::ok()){
     if(flag){
+      // 读取yaml文件，设置起始点，终止点
+      YAML::Node straightyamlConfig=YAML::LoadFile(straightpathstr);
+      int pointnum = straightyamlConfig["terminal_num"].as<int>();
+      vector<vector<double> > startposes;
+      vector<vector<double> > endposes;
+      for(int i=2;i<pointnum;i+=2){
+        vector<double> tmpstart,tmpend;
+        tmpstart.push_back(straightyamlConfig[i]["point"][0].as<double>());
+        tmpstart.push_back(straightyamlConfig[i]["point"][1].as<double>());
+        tmpstart.push_back(straightyamlConfig[i]["point"][2].as<double>());
+        startposes.push_back(tmpstart);
+        tmpend.push_back(straightyamlConfig[i+1]["point"][0].as<double>());
+        tmpend.push_back(straightyamlConfig[i+1]["point"][1].as<double>());
+        tmpend.push_back(straightyamlConfig[i+1]["point"][2].as<double>());
+        endposes.push_back(tmpend);
+      }
+      YAML::Node yamlConfig;
+      std::ofstream outfile;
+      outfile.open(curvepathstr);
       int nums=startposes.size();
+      yamlConfig["point_num"]=20;
       yamlConfig["path_num"]=nums;
       for(int i=0;i<nums;i++){
         geometry_msgs::PoseStamped start, goal;
@@ -120,15 +126,16 @@ int main(int argc, char** argv)
         std::vector<geometry_msgs::PoseStamped> pathPoses;
         RSPlanner.planPath(start, goal, pathPoses);
         for(int j=0;j<pathPoses.size();j++){
+          double angle=trans2angle(pathPoses[i].pose.orientation);
           YAML::Node pointTemp = YAML::Load("[]");
           pointTemp.push_back(pathPoses[j].pose.position.x);
           pointTemp.push_back(pathPoses[j].pose.position.y);
-          pointTemp.push_back(pathPoses[j].pose.position.z);
+          // pointTemp.push_back(pathPoses[j].pose.position.z);
+          pointTemp.push_back(angle);
           yamlConfig[i+1][j+1] = pointTemp;
         }
-        outfile << yamlConfig;  
-
       }
+      outfile << yamlConfig; 
       outfile.close();
       std_msgs::Bool std_flag;
       std_flag.data=true;
