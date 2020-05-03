@@ -53,8 +53,8 @@
 using namespace std;
 
 
-bool flag=false;
-
+bool flag=true;
+// 四元数转角度（弧度制）
 double trans2angle(geometry_msgs::Quaternion q){
   double siny_cosp = 2 * (q.w * q.z + q.x * q.y);
   double cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z);
@@ -65,7 +65,7 @@ void trans(vector<double> src, geometry_msgs::PoseStamped& des){
   des.pose.position.y=src[1];
   des.pose.position.z=0;
   //angle转四元数
-  double yaw=src[2];
+  double yaw=(src[2]-90)/180*3.14;
   double pitch=0;
   double roll=0;
   double cy = cos(yaw * 0.5);
@@ -126,7 +126,8 @@ int main(int argc, char** argv)
         std::vector<geometry_msgs::PoseStamped> pathPoses;
         RSPlanner.planPath(start, goal, pathPoses);
         for(int j=0;j<pathPoses.size();j++){
-          double angle=trans2angle(pathPoses[i].pose.orientation);
+          double angle=trans2angle(pathPoses[j].pose.orientation)/3.14*180;
+          if(angle<0)angle+=360;
           YAML::Node pointTemp = YAML::Load("[]");
           pointTemp.push_back(pathPoses[j].pose.position.x);
           pointTemp.push_back(pathPoses[j].pose.position.y);
