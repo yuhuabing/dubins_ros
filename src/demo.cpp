@@ -53,7 +53,7 @@
 using namespace std;
 
 
-bool flag=true;
+bool flag=false;
 // 四元数转角度（弧度制）
 double trans2angle(geometry_msgs::Quaternion q){
   double siny_cosp = 2 * (q.w * q.z + q.x * q.y);
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "dubins_ros_demo");
   ros::NodeHandle nh("/");
-  ros::Publisher pub = nh.advertise<std_msgs::Bool>("finish_flag", 1000);
+  ros::Publisher pub = nh.advertise<std_msgs::Bool>("map_status", 1000);
   ros::Subscriber sub = nh.subscribe("change_flag", 1000, chatterCallback);
   // 输入输出yaml文件路径
   std::string straightpathstr ="/home/yhb/in.yaml";
