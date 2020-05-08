@@ -50,6 +50,8 @@
 #include "yaml-cpp/yaml.h"
 #include <fstream>
 #include <list>
+
+#include "defineMessage/file_flag.h"
 using namespace std;
 
 
@@ -80,16 +82,30 @@ void trans(vector<double> src, geometry_msgs::PoseStamped& des){
   des.pose.orientation.z = sy * cp * cr - cy * sp * sr;
 }
 
-void chatterCallback(std_msgs::Bool m)
+// void chatterCallback(std_msgs::Bool m)
+// {
+//    if(m.data)flag=true;
+// }
+bool chatterCallback(defineMessage::file_flag::Request  &req,
+         defineMessage::file_flag::Response &res)
 {
-   if(m.data)flag=true;
+  if(req.statue==1){
+    res.receive=true;
+    flag=true;
+    ROS_INFO("sending back response: true");
+  }
+  return true;
 }
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "dubins_ros_demo");
   ros::NodeHandle nh("/");
-  ros::Publisher pub = nh.advertise<std_msgs::Bool>("map_status", 1000);
-  ros::Subscriber sub = nh.subscribe("change_flag", 1000, chatterCallback);
+  // ros::Publisher pub = nh.advertise<std_msgs::Bool>("map_status", 1000);
+  // ros::Subscriber sub = nh.subscribe("change_flag", 1000, chatterCallback);
+
+  //服务
+  ros::ServiceServer service = nh.advertiseService("change_flag", chatterCallback);
+  ros::ServiceClient client = nh.serviceClient<defineMessage::file_flag>("finish_flag");
   // 输入输出yaml文件路径
   std::string straightpathstr ="/home/yhb/in.yaml";
   std::string curvepathstr ="/home/yhb/out.yaml";
@@ -138,10 +154,13 @@ int main(int argc, char** argv)
       }
       outfile << yamlConfig; 
       outfile.close();
-      std_msgs::Bool std_flag;
-      std_flag.data=true;
-      pub.publish(std_flag);
+      // std_msgs::Bool std_flag;
+      // std_flag.data=true;
+      // pub.publish(std_flag);
       flag=false;
+      defineMessage::file_flag srv;
+      srv.request.statue = 1;
+      client.call(srv);
     }
     ros::spinOnce();
     ros::Duration(1.0).sleep();

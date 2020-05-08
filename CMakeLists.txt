@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(reeds_shepp_paths_ros)
-
 add_compile_options(-std=c++11)
-
 find_package(catkin REQUIRED
   COMPONENTS
     roscpp
@@ -11,8 +9,8 @@ find_package(catkin REQUIRED
     geometry_msgs
     nav_msgs
     std_msgs
+    defineMessage
 )
-
 find_package(OMPL)
 if (NOT OMPL_FOUND)
   message(SEND_ERROR "Failed to find OMPL! Install OMPL and try again!")
@@ -27,9 +25,8 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${OMPL_INCLUDE_DIRS}
   ${YAMLCPP_INCLUDE_DIRS}
+  defineMessage
 )
-
-
 catkin_package(
   INCLUDE_DIRS
     include

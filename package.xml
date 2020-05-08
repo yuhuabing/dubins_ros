@@ -19,6 +19,7 @@
   <depend>nav_msgs</depend>
   <depend>std_msgs</depend>
   <depend>ompl</depend>
+  <depend>defineMessage</depend>
 
   <export>
   </export>
