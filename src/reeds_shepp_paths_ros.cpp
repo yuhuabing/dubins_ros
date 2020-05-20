@@ -38,7 +38,6 @@
 #include "reeds_shepp_paths_ros/reeds_shepp_paths_ros.h"
 #include <tf/tf.h>
 #include <boost/foreach.hpp>
-
 namespace reeds_shepp
 {
   RSPathsROS::RSPathsROS(
@@ -101,8 +100,7 @@ namespace reeds_shepp
       ROS_WARN("No costmap provided. Collision checking unavailable. "
         "Same robot_frame and global_frame assumed.");
       robotFrame_ = globalFrame_ = "base_footprint";
-
-      setBoundaries(1000.0, 1000.0);
+      setBoundaries(10e7, 10e7);
     }
 
     initialized_ = true;
@@ -204,23 +202,19 @@ namespace reeds_shepp
       ROS_ERROR("Planner not initialized!");
       return false;
     }
-
     // disable planner console output
     if (!displayPlannerOutput_)
     {
       std::cout.setstate(std::ios_base::failbit);
       std::cerr.setstate(std::ios_base::failbit);
     }
-
     // create start and goal states
     ompl::base::ScopedState<> start(reedsSheppStateSpace_);
     ompl::base::ScopedState<> goal(reedsSheppStateSpace_);
-
     // initialize state valididy checker
     ompl::base::SpaceInformationPtr si(simpleSetup_->getSpaceInformation());
     simpleSetup_->setStateValidityChecker(
       boost::bind(&RSPathsROS::isStateValid, this, si.get(), _1));
-
 
     stamp_ = startPose.header.stamp;
 
@@ -240,7 +234,6 @@ namespace reeds_shepp
     // convert start and goal poses to ompl base states
     pose2state(localStartPose, start());
     pose2state(localGoalPose, goal());
-
     // clear all planning data
     simpleSetup_->clear();
     // set new start and goal states
@@ -253,7 +246,6 @@ namespace reeds_shepp
 
     // simplify solution
     simpleSetup_->simplifySolution();
-
     // get solution path
     ompl::geometric::PathGeometric path = simpleSetup_->getSolutionPath();
     // interpolate between poses
@@ -261,7 +253,6 @@ namespace reeds_shepp
 
     if (path.getStateCount() > interpolationNumPoses_)
       return false;
-
 
     // resize pathPoses
     pathPoses.resize(path.getStateCount());
